@@ -1,14 +1,248 @@
 <!DOCTYPE html>
 <html lang="ja">
-
 <head>
     <meta charset="UTF-8">
-    <title>サンプルHTMLページ</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Focus Flow - ポモドーロタイマー</title>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;700&family=Outfit:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+        :root {
+            --bg: #090d16;
+            --card: rgba(19, 27, 46, 0.8);
+            --border: rgba(255, 255, 255, 0.08);
+            --text: #f8fafc;
+            --text-sub: #94a3b8;
+            --work: #ff4a70;
+            --work-glow: rgba(255, 74, 112, 0.3);
+            --break: #00e699;
+            --break-glow: rgba(0, 230, 153, 0.3);
+            --accent: var(--work);
+            --accent-glow: var(--work-glow);
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
+        body {
+            background-color: var(--bg); color: var(--text); font-family: 'Outfit', sans-serif;
+            min-height: 100vh; display: flex; align-items: center; justify-content: center;
+            overflow: hidden; position: relative;
+        }
+        body::before {
+            content: ''; position: absolute; width: 350px; height: 350px; border-radius: 50%;
+            background: var(--accent-glow); filter: blur(120px); z-index: -1; transition: 0.5s;
+        }
+        .container { width: 100%; max-width: 400px; padding: 20px; z-index: 10; }
+        header { text-align: center; margin-bottom: 25px; }
+        header h1 {
+            font-size: 2.2rem; font-weight: 800; letter-spacing: -1px;
+            background: linear-gradient(135deg, #ffffff, var(--accent));
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent; transition: 0.5s;
+        }
+        .tabs {
+            display: flex; background: rgba(0, 0, 0, 0.4); padding: 5px;
+            border-radius: 999px; border: 1px solid var(--border); margin-bottom: 25px;
+        }
+        .tab {
+            flex: 1; background: transparent; border: none; color: var(--text-sub);
+            padding: 8px 12px; border-radius: 999px; font-size: 0.85rem; font-weight: 600;
+            cursor: pointer; transition: 0.3s;
+        }
+        .tab.active {
+            background: var(--accent); color: #090d16; font-weight: 700;
+            box-shadow: 0 4px 12px var(--accent-glow);
+        }
+        .card {
+            background: var(--card); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+            border: 1px solid var(--border); border-radius: 24px; padding: 35px 25px;
+            text-align: center; box-shadow: 0 20px 40px rgba(0,0,0,0.5);
+        }
+        .timer-box { position: relative; margin-bottom: 25px; }
+        .time {
+            font-family: 'JetBrains Mono', monospace; font-size: 4rem; font-weight: 300;
+            line-height: 1; text-shadow: 0 0 15px rgba(255,255,255,0.05); margin-bottom: 5px;
+        }
+        .mode-label { font-size: 0.8rem; color: var(--text-sub); letter-spacing: 2px; text-transform: uppercase; }
+        .progress-bar-container {
+            width: 100%; height: 6px; background: rgba(255,255,255,0.05);
+            border-radius: 3px; overflow: hidden; margin: 20px 0 30px;
+        }
+        .progress-bar {
+            height: 100%; width: 100%; background: var(--accent);
+            box-shadow: 0 0 8px var(--accent); transition: width 1s linear, background 0.5s;
+        }
+        .controls { display: flex; gap: 15px; justify-content: center; align-items: center; }
+        .btn {
+            border: none; outline: none; cursor: pointer; display: flex; align-items: center;
+            justify-content: center; transition: 0.2s; border-radius: 50%;
+        }
+        .btn-main {
+            width: 65px; height: 65px; background: var(--text); color: var(--bg); font-size: 1.4rem;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.3);
+        }
+        .btn-main:hover { transform: scale(1.08); background: #fff; }
+        .btn-main:active { transform: scale(0.95); }
+        .btn-sub {
+            width: 46px; height: 46px; background: rgba(255,255,255,0.05);
+            border: 1px solid var(--border); color: var(--text-sub); font-size: 1.1rem;
+        }
+        .btn-sub:hover { background: rgba(255,255,255,0.1); color: var(--text); transform: scale(1.05); }
+        .stats {
+            background: rgba(0,0,0,0.2); border-radius: 16px; border: 1px solid var(--border);
+            padding: 12px 20px; display: flex; justify-content: space-between; align-items: center;
+            margin-top: 25px; font-size: 0.85rem;
+        }
+        .stats-text { color: var(--text-sub); }
+        .stats-count { font-family: 'JetBrains Mono', monospace; font-size: 1.2rem; font-weight: 700; }
+        .btn-reset-stats {
+            background: transparent; border: none; color: #f43f5e; cursor: pointer;
+            padding: 3px 8px; border-radius: 4px; font-size: 0.75rem; transition: 0.2s;
+        }
+        .btn-reset-stats:hover { background: rgba(244, 63, 94, 0.1); }
+        .toast {
+            position: fixed; top: -100px; background: #131b2e; border: 1px solid var(--accent);
+            color: var(--text); padding: 12px 24px; border-radius: 12px; font-size: 0.9rem;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5); transition: 0.4s cubic-bezier(0.18, 0.89, 0.32, 1.28);
+            z-index: 100; text-align: center; opacity: 0;
+        }
+        .toast.show { top: 20px; opacity: 1; }
+        .play::before { content: "▶"; margin-left: 2px; }
+        .pause::before { content: "⏸"; }
+        .reset::before { content: "↺"; }
+    </style>
 </head>
-
 <body>
-    <h1>ようこそ！</h1>
-    <p>これはサンプルのHTMLページです。</p>
-</body>
+<div class="container">
+        <header>
+            <h1 id="title">Focus Flow</h1>
+        </header>
+        <div class="tabs">
+            <button class="tab active" data-mode="work">作業 (25分)</button>
+            <button class="tab" data-mode="break">休憩 (5分)</button>
+        </div>
+        <div class="card">
+            <div class="timer-box">
+                <div class="time" id="time">25:00</div>
+                <div class="mode-label" id="label">作業中</div>
+            </div>
+            <div class="progress-bar-container">
+                <div class="progress-bar" id="progress"></div>
+            </div>
+            <div class="controls">
+                <button class="btn btn-sub reset" id="btn-reset" title="リセット"></button>
+                <button class="btn btn-main play" id="btn-start" title="スタート"></button>
+            </div>
+            <div class="stats">
+                <div>
+                    <span class="stats-text">完了セッション:</span>
+                    <span class="stats-count" id="count">0</span>
+                </div>
+                <button class="btn-reset-stats" id="btn-reset-stats">リセット</button>
+            </div>
+        </div>
+    </div>
+    <div class="toast" id="toast"></div>
+<script>
+        const durations = { work: 25 * 60, break: 5 * 60 };
+        let mode = 'work', timeLeft = durations.work, timer = null, isRunning = false;
+        let sessions = parseInt(localStorage.getItem('pomo_sessions') || '0', 10);
+        const timeEl = document.getElementById('time'), labelEl = document.getElementById('label'), progressEl = document.getElementById('progress'), btnStart = document.getElementById('btn-start'), btnReset = document.getElementById('btn-reset'), countEl = document.getElementById('count'), btnResetStats = document.getElementById('btn-reset-stats'), toastEl = document.getElementById('toast'), tabs = document.querySelectorAll('.tab');
 
+        function init() {
+            countEl.textContent = sessions;
+            updateDisplay();
+            tabs.forEach(t => t.addEventListener('click', () => switchMode(t.dataset.mode)));
+            btnStart.addEventListener('click', toggle);
+            btnReset.addEventListener('click', reset);
+            btnResetStats.addEventListener('click', () => {
+                if (confirm('作業回数をリセットしますか？')) {
+                    sessions = 0;
+                    localStorage.setItem('pomo_sessions', '0');
+                    countEl.textContent = '0';
+                    showToast('カウンターをリセットしました');
+                }
+            });
+            document.addEventListener('keydown', e => {
+                if (e.code === 'Space') { e.preventDefault(); toggle(); }
+                else if (e.key.toLowerCase() === 'r') { reset(); }
+            });
+        }
+
+        function playSound() {
+            try {
+                const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                const playTone = (freq, start, dur) => {
+                    const osc = ctx.createOscillator(), gain = ctx.createGain();
+                    osc.type = 'sine'; osc.frequency.setValueAtTime(freq, start);
+                    gain.gain.setValueAtTime(0, start);
+                    gain.gain.linearRampToValueAtTime(0.2, start + 0.05);
+                    gain.gain.exponentialRampToValueAtTime(0.001, start + dur);
+                    osc.connect(gain); gain.connect(ctx.destination);
+                    osc.start(start); osc.stop(start + dur);
+                };
+                playTone(523.25, ctx.currentTime, 0.4);
+                playTone(659.25, ctx.currentTime + 0.15, 0.5);
+            } catch (e) { console.warn(e); }
+        }
+
+        function showToast(msg) {
+            toastEl.textContent = msg; toastEl.classList.add('show');
+            setTimeout(() => toastEl.classList.remove('show'), 3500);
+        }
+
+        function updateDisplay() {
+            const m = Math.floor(timeLeft / 60).toString().padStart(2, '0');
+            const s = (timeLeft % 60).toString().padStart(2, '0');
+            timeEl.textContent = `${m}:${s}`;
+            document.title = `${m}:${s} | ${mode === 'work' ? '作業中' : '休憩中'}`;
+            progressEl.style.width = `${(timeLeft / durations[mode]) * 100}%`;
+        }
+
+        function switchMode(newMode) {
+            stop(); mode = newMode; timeLeft = durations[mode];
+            tabs.forEach(t => t.classList.toggle('active', t.dataset.mode === mode));
+            const root = document.documentElement;
+            if (mode === 'work') {
+                root.style.setProperty('--accent', 'var(--work)');
+                root.style.setProperty('--accent-glow', 'var(--work-glow)');
+                labelEl.textContent = '作業中';
+            } else {
+                root.style.setProperty('--accent', 'var(--break)');
+                root.style.setProperty('--accent-glow', 'var(--break-glow)');
+                labelEl.textContent = '休憩中';
+            }
+            updateDisplay();
+        }
+
+        function toggle() { if (isRunning) stop(); else start(); }
+
+        function start() {
+            if (isRunning) return;
+            isRunning = true; btnStart.classList.replace('play', 'pause');
+            timer = setInterval(() => {
+                timeLeft--;
+                if (timeLeft < 0) complete(); else updateDisplay();
+            }, 1000);
+        }
+
+        function stop() {
+            if (!isRunning) return;
+            isRunning = false; btnStart.classList.replace('pause', 'play');
+            clearInterval(timer);
+        }
+
+        function reset() { stop(); timeLeft = durations[mode]; updateDisplay(); }
+
+        function complete() {
+            stop(); playSound();
+            if (mode === 'work') {
+                sessions++; localStorage.setItem('pomo_sessions', sessions);
+                countEl.textContent = sessions;
+                showToast('25分の作業完了！素晴らしいです。休憩しましょう ☕');
+                switchMode('break');
+            } else {
+                showToast('休憩終了！次のセッションを始めましょう 🔥');
+                switchMode('work');
+            }
+        }
+        init();
+    </script>
+</body>
 </html>
