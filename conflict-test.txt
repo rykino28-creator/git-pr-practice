@@ -1,1 +1,2 @@
 "It's snowy" 
+"It's rainy" 
